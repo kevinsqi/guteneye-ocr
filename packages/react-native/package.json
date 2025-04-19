@@ -1,5 +1,5 @@
 {
-  "name": "@gutenye/ocr-react-native",
+  "name": "@kevinqi/ocr-react-native",
   "description": "Guten OCR is a high accurate text detection (OCR) Javascript/Typescript library that runs on Node.js, Browser, React Native and C++. Based on PaddleOCR and ONNX runtime",
   "keywords": [
     "ocr",
@@ -11,7 +11,7 @@
     "android",
     "expo"
   ],
-  "version": "1.4.8",
+  "version": "1.4.8-rnfix.0",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
   "react-native": "src/index",
