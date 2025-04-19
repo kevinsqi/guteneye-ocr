@@ -127,6 +127,7 @@ android {
       "**/libjsi.so",
       "**/libreact_nativemodule_core.so",
       "**/libreactnativejni.so",
+      "**/libreactnative.so",
       "**/libturbomodulejsijni.so",
       "**/libc++_shared.so"
     ]
