@@ -28,6 +28,6 @@ target_link_libraries(
   ${OpenCV_LIBS}
   ${CMAKE_SOURCE_DIR}/build/onnxruntime/jni/${CMAKE_ANDROID_ARCH_ABI}/libonnxruntime.so
   ReactAndroid::jsi
-  ReactAndroid::reactnativejni
+  ReactAndroid::reactnative
 )
 
