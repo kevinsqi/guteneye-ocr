@@ -24,6 +24,11 @@ def isNewArchitectureEnabled() {
   return rootProject.hasProperty("newArchEnabled") && rootProject.getProperty("newArchEnabled") == "true"
 }
 
+def reactNativeArchitectures() {
+  def value = rootProject.findProperty("reactNativeArchitectures")
+  return value ? value.split(",") : ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
+}
+
 plugins {
   id "de.undercouch.download" version "5.6.0"
 }
@@ -69,7 +74,11 @@ android {
     minSdkVersion getExtOrIntegerDefault("minSdkVersion")
     targetSdkVersion getExtOrIntegerDefault("targetSdkVersion")
     buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
-    
+
+    ndk {
+      abiFilters(*reactNativeArchitectures())
+    }
+
     externalNativeBuild {
       cmake {
         cppFlags "-O2 -frtti -fexceptions -Wall -fstack-protector-all"
@@ -157,31 +166,33 @@ if (isNewArchitectureEnabled()) {
   }
 }
 
-task downloadOpenCV() {
-  def zipfile = layout.buildDirectory.file("opencv.zip")
-  download.run {
-    src "https://github.com/nihui/opencv-mobile/releases/download/v27/opencv-mobile-4.9.0-android.zip"
-    dest zipfile
-    overwrite false
-  }
-  copy {
-    from zipTree(zipfile)
-    into layout.buildDirectory
-  }
-}
-preBuild.dependsOn downloadOpenCV
+def openCVZip = layout.buildDirectory.file("downloads/opencv-mobile-4.9.0-android.zip")
+def openCVDirectory = layout.buildDirectory.dir("third-party/opencv")
+def onnxruntimeArchive = layout.buildDirectory.file("downloads/onnxruntime-android-1.17.3.aar")
+def onnxruntimeDirectory = layout.buildDirectory.dir("third-party/onnxruntime")
 
-task downloadOnnxruntime() {
-  def zipfile = layout.buildDirectory.file("onnxruntime.zip")
-  download.run {
-    src "https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.17.3/onnxruntime-android-1.17.3.aar"
-    dest zipfile
-    overwrite false
-  }
-  copy {
-    from zipTree(zipfile)
-    into layout.buildDirectory.dir("onnxruntime")
-  }
+def downloadOpenCV = tasks.register("downloadOpenCV", de.undercouch.gradle.tasks.download.Download) {
+  src "https://github.com/nihui/opencv-mobile/releases/download/v27/opencv-mobile-4.9.0-android.zip"
+  dest openCVZip.get().asFile
+  overwrite false
 }
-preBuild.dependsOn downloadOnnxruntime
-downloadOnnxruntime.mustRunAfter downloadOpenCV
+
+def extractOpenCV = tasks.register("extractOpenCV", Sync) {
+  dependsOn downloadOpenCV
+  from { zipTree(openCVZip.get().asFile) }
+  into openCVDirectory
+}
+
+def downloadOnnxruntime = tasks.register("downloadOnnxruntime", de.undercouch.gradle.tasks.download.Download) {
+  src "https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.17.3/onnxruntime-android-1.17.3.aar"
+  dest onnxruntimeArchive.get().asFile
+  overwrite false
+}
+
+def extractOnnxruntime = tasks.register("extractOnnxruntime", Sync) {
+  dependsOn downloadOnnxruntime
+  from { zipTree(onnxruntimeArchive.get().asFile) }
+  into onnxruntimeDirectory
+}
+
+preBuild.dependsOn extractOpenCV, extractOnnxruntime
