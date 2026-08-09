@@ -4,7 +4,7 @@ project(guten-ocr)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(OpenCV_DIR "${CMAKE_SOURCE_DIR}/build/opencv-mobile-4.9.0-android/sdk/native/jni")
+set(OpenCV_DIR "${CMAKE_SOURCE_DIR}/build/third-party/opencv/opencv-mobile-4.9.0-android/sdk/native/jni")
 
 file(GLOB SOURCES "./*.cpp" "../cpp/*.cpp")
 
@@ -20,14 +20,13 @@ add_library(
 include_directories(
   ../cpp
   ${OpenCV_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/build/onnxruntime/headers
+  ${CMAKE_SOURCE_DIR}/build/third-party/onnxruntime/headers
 )
 
 target_link_libraries(
   ${PROJECT_NAME} 
   ${OpenCV_LIBS}
-  ${CMAKE_SOURCE_DIR}/build/onnxruntime/jni/${CMAKE_ANDROID_ARCH_ABI}/libonnxruntime.so
+  ${CMAKE_SOURCE_DIR}/build/third-party/onnxruntime/jni/${CMAKE_ANDROID_ARCH_ABI}/libonnxruntime.so
   ReactAndroid::jsi
   ReactAndroid::reactnative
 )
-
