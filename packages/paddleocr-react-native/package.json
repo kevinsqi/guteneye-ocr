@@ -1,0 +1,83 @@
+{
+  "name": "@gutenye/paddleocr-react-native",
+  "description": "PaddleOCR v5 for React Native using ONNX Runtime. High-accuracy text detection and recognition.",
+  "keywords": [
+    "ocr",
+    "paddleocr",
+    "paddleocr-v5",
+    "pp-ocrv5",
+    "typescript",
+    "onnxruntime",
+    "react-native",
+    "android",
+    "text-detection",
+    "text-recognition"
+  ],
+  "version": "0.1.0",
+  "main": "lib/commonjs/index",
+  "module": "lib/module/index",
+  "react-native": "src/index",
+  "source": "src/index",
+  "types": "lib/typescript/src/index.d.ts",
+  "files": [
+    "src",
+    "lib",
+    "android",
+    "!android/build",
+    "!android/gradle",
+    "!android/gradlew",
+    "!android/gradlew.bat",
+    "!android/local.properties",
+    "cpp",
+    "*.podspec",
+    "!**/__tests__",
+    "!**/__fixtures__",
+    "!**/__mocks__",
+    "!**/.*"
+  ],
+  "scripts": {
+    "test": "jest",
+    "typecheck": "tsc --noEmit",
+    "clean": "del-cli android/build lib",
+    "build": "bob build",
+    "prepublishOnly": "bob build",
+    "release": "release-it"
+  },
+  "homepage": "https://github.com/gutenye/ocr",
+  "author": "Guten Ye <ywzhaifei@gmail.com> (https://github.com/gutenye)",
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "del-cli": "^5.1.0",
+    "react": "18.2.0",
+    "react-native": "0.73.6",
+    "react-native-builder-bob": "^0.20.0",
+    "typescript": "^5.2.2"
+  },
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      "commonjs",
+      "module",
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json"
+        }
+      ]
+    ]
+  },
+  "codegenConfig": {
+    "name": "RNPaddleOcrSpec",
+    "type": "modules",
+    "jsSrcsDir": "src"
+  }
+}

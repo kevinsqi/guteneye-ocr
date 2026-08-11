@@ -1,0 +1,222 @@
+buildscript {
+  def kotlin_version = rootProject.ext.has("kotlinVersion") ? rootProject.ext.get("kotlinVersion") : project.properties["PaddleOcr_kotlinVersion"]
+
+  repositories {
+    google()
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath "com.android.tools.build:gradle:7.2.1"
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+  }
+}
+
+def resolveBuildType() {
+    Gradle gradle = getGradle()
+    String tskReqStr = gradle.getStartParameter().getTaskRequests()['args'].toString()
+    return tskReqStr.contains('Release') ? 'release' : 'debug'
+}
+
+def isNewArchitectureEnabled() {
+  return rootProject.hasProperty("newArchEnabled") && rootProject.getProperty("newArchEnabled") == "true"
+}
+
+plugins {
+  id "de.undercouch.download" version "5.6.0"
+}
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+
+if (isNewArchitectureEnabled()) {
+  apply plugin: "com.facebook.react"
+}
+
+def getExtOrDefault(name) {
+  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties["PaddleOcr_" + name]
+}
+
+def getExtOrIntegerDefault(name) {
+  return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties["PaddleOcr_" + name]).toInteger()
+}
+
+def supportsNamespace() {
+  def parsed = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')
+  def major = parsed[0].toInteger()
+  def minor = parsed[1].toInteger()
+
+  // Namespace support was added in 7.3.0
+  return (major == 7 && minor >= 3) || major >= 8
+}
+
+android {
+  if (supportsNamespace()) {
+    namespace "com.paddleocr"
+
+    sourceSets {
+      main {
+        manifest.srcFile "src/main/AndroidManifestNew.xml"
+      }
+    }
+  }
+
+  compileSdkVersion getExtOrIntegerDefault("compileSdkVersion")
+
+  defaultConfig {
+    minSdkVersion getExtOrIntegerDefault("minSdkVersion")
+    targetSdkVersion getExtOrIntegerDefault("targetSdkVersion")
+    buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
+
+    externalNativeBuild {
+      cmake {
+        cppFlags "-O2 -frtti -fexceptions -Wall -fstack-protector-all"
+        arguments "-DANDROID_STL=c++_shared"
+      }
+    }
+  }
+
+  externalNativeBuild {
+    cmake {
+      path "CMakeLists.txt"
+    }
+  }
+
+  buildFeatures {
+    buildConfig true
+    prefab true
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled false
+    }
+  }
+
+  lintOptions {
+    disable "GradleCompatible"
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_1_8
+    targetCompatibility JavaVersion.VERSION_1_8
+  }
+
+  sourceSets {
+    main {
+      if (isNewArchitectureEnabled()) {
+        java.srcDirs += [
+          "src/newarch",
+          "${project.buildDir}/generated/source/codegen/java"
+        ]
+      } else {
+        java.srcDirs += ["src/oldarch"]
+      }
+    }
+  }
+
+  packagingOptions {
+    doNotStrip resolveBuildType() == 'debug' ? "**/**/*.so" : ''
+    excludes = [
+      "META-INF",
+      "META-INF/**",
+      "**/libfbjni.so",
+      "**/libjsi.so",
+      "**/libreact_nativemodule_core.so",
+      "**/libreactnativejni.so",
+      "**/libturbomodulejsijni.so",
+      "**/libc++_shared.so"
+    ]
+  }
+}
+
+repositories {
+  mavenCentral()
+  google()
+}
+
+def kotlin_version = getExtOrDefault("kotlinVersion")
+
+dependencies {
+  //noinspection GradleDynamicVersion
+  implementation "com.facebook.react:react-native:+"
+  implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+}
+
+if (isNewArchitectureEnabled()) {
+  react {
+    jsRootDir = file("../src/")
+    libraryName = "RNPaddleOcr"
+    codegenJavaPackageName = "com.paddleocr"
+  }
+}
+
+task downloadOpenCV() {
+  def zipfile = layout.buildDirectory.file("opencv.zip")
+  download.run {
+    src "https://github.com/nihui/opencv-mobile/releases/download/v27/opencv-mobile-4.9.0-android.zip"
+    dest zipfile
+    overwrite false
+  }
+  copy {
+    from zipTree(zipfile)
+    into layout.buildDirectory
+  }
+}
+preBuild.dependsOn downloadOpenCV
+
+task downloadOnnxruntime() {
+  def zipfile = layout.buildDirectory.file("onnxruntime.zip")
+  download.run {
+    src "https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.17.3/onnxruntime-android-1.17.3.aar"
+    dest zipfile
+    overwrite false
+  }
+  copy {
+    from zipTree(zipfile)
+    into layout.buildDirectory.dir("onnxruntime")
+  }
+}
+preBuild.dependsOn downloadOnnxruntime
+downloadOnnxruntime.mustRunAfter downloadOpenCV
+
+// Download PP-OCRv4 models from GitHub LFS
+// These are the default bundled models. For PP-OCRv5, download from Hugging Face:
+// https://huggingface.co/monkt/paddleocr-onnx
+task downloadModels() {
+  def modelsDir = file("src/main/assets/paddleocr.bundle")
+  modelsDir.mkdirs()
+
+  def detModel = file("${modelsDir}/det.onnx")
+  def recModel = file("${modelsDir}/rec.onnx")
+  def dictFile = file("${modelsDir}/dict.txt")
+
+  // Download detection model (PP-OCRv4)
+  if (!detModel.exists() || detModel.length() < 1000) {
+    download.run {
+      src "https://github.com/gutenye/ocr/raw/main/packages/models/assets/ch_PP-OCRv4_det_infer.onnx"
+      dest detModel
+      overwrite true
+    }
+  }
+
+  // Download recognition model (PP-OCRv4)
+  if (!recModel.exists() || recModel.length() < 1000) {
+    download.run {
+      src "https://github.com/gutenye/ocr/raw/main/packages/models/assets/ch_PP-OCRv4_rec_infer.onnx"
+      dest recModel
+      overwrite true
+    }
+  }
+
+  // Download dictionary
+  if (!dictFile.exists() || dictFile.length() < 1000) {
+    download.run {
+      src "https://github.com/gutenye/ocr/raw/main/packages/models/assets/ppocr_keys_v1.txt"
+      dest dictFile
+      overwrite true
+    }
+  }
+}
+preBuild.dependsOn downloadModels
+downloadModels.mustRunAfter downloadOnnxruntime
